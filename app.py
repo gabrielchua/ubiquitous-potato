@@ -272,6 +272,8 @@ def main():
             except Exception as e:
                 st.error(f"An error occurred: {e}")
             for key, value in output.items():
+                st.markdown(f"### {key.capitalize()}")
+                
                 text_data = processor.preprocess_text(value)
                 text_embedding = model.encode_text(text_data).flatten()
                 search_results = tbl.search(text_embedding).where(f"category == '{key}'", prefilter=True).limit(3).to_pandas()
