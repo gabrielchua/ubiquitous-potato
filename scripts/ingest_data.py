@@ -39,7 +39,7 @@ tbl = db.create_table("poc", schema=schema)
 
 # Iterate over the rows in the dataframe
 for index, row in tqdm(df.iterrows(), total=len(df)):
-    image = Image.open(f"images/{row['file_name']}")
+    image = Image.open(f"../images/{row['file_name']}")
     image_data = processor.preprocess_image(image)
     _, image_embedding = model.encode_image(image_data, return_features=True)
     img_data_to_add = [
