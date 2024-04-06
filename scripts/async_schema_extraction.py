@@ -1,8 +1,9 @@
 # Standard library imports
-import os
-import json
-import base64
 import asyncio
+import base64
+import json
+import os
+import random
 from datetime import datetime
 
 # Third-party imports
@@ -72,12 +73,15 @@ async def main():
     """ Main function to process all files asynchronously and save the results to a CSV file"""
     print(f"starting at {datetime.now()}")
     semaphore = asyncio.Semaphore(7)  # Allows up to 7 concurrent tasks
-    file_names_all = [f for f in os.listdir('../images/') if f.endswith('.jpg') or f.endswith('.png')]
+    file_names_all = [f for f in os.listdir('/Users/dsaid/Downloads/images/') if f.endswith('.jpg') or f.endswith('.png')]
+    random.shuffle(file_names_all)
+    file_names_all = file_names_all[:500]
+
     tasks = [process_file(file_name, semaphore) for file_name in file_names_all]
     results = await asyncio.gather(*tasks)
 
     df = pd.DataFrame(results, columns=['file_name', 'category', 'gender', 'occasion', 'color'])
-    df.to_csv("../data/meta_data_v2_async.csv", index=False)
+    df.to_csv("../data/meta_data_v3_async.csv", index=False)
     print(f"ended at {datetime.now()}")
 
 asyncio.run(main())
