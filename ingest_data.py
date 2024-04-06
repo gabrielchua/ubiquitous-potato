@@ -2,49 +2,54 @@
 ingest_data.py
 """
 # Standard library imports
-import os
 from PIL import Image # type: ignore
 
 # Third-party imports
-import lancedb #
-import pyarrow as pa #
+import lancedb
+import pandas as pd
+import pyarrow as pa
 import uform #version 2.0.2
 
 # Load the model
 model, processor = uform.get_model_onnx('unum-cloud/uform-vl-english-small', 'cpu', 'fp32')
 
+# Load the data
+df = pd.read_csv('data/processed_data.csv')
+
 # Connect to the database
 uri = "data/lancedb"
 db = lancedb.connect(uri)
 
-# Create a schema and empty table
+# Create a schema
 schema = pa.schema([
     pa.field("vector", pa.list_(pa.float32(), list_size=256)),
-    pa.field("name", pa.string())
+    pa.field("file_name", pa.string()),
+    pa.field("category", pa.string()),
+    pa.field("gender", pa.string()),
+    pa.field("occassion", pa.string())
     ])
+
+# Create an empty table with the schema
 tbl = db.create_table("poc", schema=schema)
 
-# Get all .jpg or .png files in the 'images' directory
-file_names = [f for f in os.listdir('images') if f.endswith('.jpg') or f.endswith('.png')]
+# # Get all .jpg or .png files in the 'images' directory
+# file_names = [f for f in os.listdir('images') if f.endswith('.jpg') or f.endswith('.png')]
 
-for img_file_name in file_names:
-    image = Image.open(f"images/{img_file_name}")
+# Iterate over the rows in the dataframe
+for index, row in df.iterrows():
+    image = Image.open(f"images/{row['file_name']}")
     image_data = processor.preprocess_image(image)
     _, image_embedding = model.encode_image(image_data, return_features=True)
     img_data_to_add = [
         {
             "vector": image_embedding.flatten(),
-            "name": f"{img_file_name}"
+            "name": f"{row['file_name']}",
+            "category": f"{row['category']}",
+            "gender": f"{row['gender']}",
+            "occassion": f"{row['occassion']}"
         },
     ]
-    tbl.add(img_data_to_add) # Add the image embedding to the table
+    tbl.add(img_data_to_add) # Add the image and metadata to the table
 
 # Create index
-# tbl.create_index(num_sub_vectors=1)
-
-# Query the table
-
-text = "red shoes"
-text_data = processor.preprocess_text(text)
-_, text_embedding = model.encode_text(text_data, return_features=True)
-tbl.search(text_embedding.flatten()).limit(2).to_pandas(flatten=True)
+tbl.create_index(num_sub_vectors=1)
