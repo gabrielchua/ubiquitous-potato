@@ -116,6 +116,47 @@ def openai_image_analysis(base64_image):
     return json.loads(contents)
     # return response['choices'][0]['message']['content']
 
+# generate a text as a consultation to the user
+@st.cache_resource
+def generate_recommendation(user_input, results):
+    api_key = st.secrets["OPENAI_API_KEY"]
+
+    client = openai.OpenAI(api_key=api_key)
+
+    message_text = [
+        {
+            "role": "system",
+            "content": """Your role is to be a trusted fashion stylist.
+            Given the context of user inputs, write a paragraph to explain fashion choice by the user, and give context on what he or she might like.
+            Then, generate the explanations of the results (which is stored in a df), unpack the output, and help user understands how he or she may like to wear the clothes.
+            Use a tone like a best friend to the user, write a short paragraph to give context on what he or she might like.
+            For example: 
+            There are the items you may like based on the style of your choice. The first item, can be worn as a leisure wear, featuring a white color that resonates with your dress's base tone. It could pair well with similar skirts or pants for a cohesive look. 
+            The second and third items introduce multi-color options, and can be worn as a leisure wear or a work wear. These choices suggest a blend of versatility and a subtle nod to your liking for floral or patterned designs, offering alternatives that could diversify your wardrobe while staying true to your aesthetic. 
+            The color schemes and occasions these items are suited for indicate a range of possibilities for mixing and matching with your existing pieces, encouraging a playful yet refined approach to everyday dressing.
+            """
+        },
+        {
+            "role": "user",
+            "content": f"[User image]\n{user_input}\
+            [Returned results]\n{results}",
+        },
+    ]
+
+    response = client.chat.completions.create(
+        model="gpt-4-turbo-preview",
+        messages=message_text,
+        temperature=0,
+        max_tokens=300,
+        top_p=0.95,
+        frequency_penalty=0,
+        presence_penalty=0,
+        stop=None,
+    )
+    # return response['choices'][0]['message']['content']
+    return response.choices[0].message.content
+
+
 def generate_user_input(session_state):
     user_input = {
         "Text Style Assessment": {
@@ -135,11 +176,8 @@ def generate_user_input(session_state):
     }
     return user_input
 
-# generate a text as a consultation to the user
-
-
 def main():
-    st.title("Fashion Emulator")
+    st.title("StyleSync: Your Style Companion")
     # initialize_session_state()  # Initialize session state at the start of main()
     tab1, tab2 = st.tabs(["Upload an example", "More info"])
     
@@ -156,7 +194,6 @@ def main():
             # Query the database using the given text among the hats category
             search_results = tbl.search(text_embedding).limit(3).to_pandas()
             # st.dataframe(search_results)
-            # need to return a generated description
 
             # Get the embeddings of the images
             image = Image.open(st.session_state["image"])
@@ -165,7 +202,9 @@ def main():
 
             # Query the database using the given image among the shoes
             search_results_2 = tbl.search(text_embedding).limit(3).to_pandas()
-            st.dataframe(search_results_2)
+            # st.dataframe(search_results_2)
+
+
             col1 = st.columns(3)
             for index, row in search_results_2.iterrows():
                 filename = row["file_name"]
@@ -177,6 +216,10 @@ def main():
                     
                 except FileNotFoundError:
                     st.error(f"Image file not found for row {index}.")
+            # need to return a generated description
+            recommendation = generate_recommendation(response['description'], search_results)
+            st.markdown(recommendation)
+
     with tab2:
         style_assessment_text()
         if st.button("Submit"):
