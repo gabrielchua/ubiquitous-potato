@@ -15,10 +15,10 @@ from tqdm import tqdm
 model, processor = uform.get_model_onnx('unum-cloud/uform-vl-english-small', 'cpu', 'fp32')
 
 # Load the data
-df = pd.read_csv('data/meta_data.csv')
+df = pd.read_csv('../data/meta_data.csv')
 
 # Connect to the database
-uri = "data/lancedb"
+uri = "../data/lancedb"
 db = lancedb.connect(uri)
 
 # Create a schema

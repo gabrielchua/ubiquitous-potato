@@ -85,7 +85,7 @@ for img_file in file_names:
   except Exception as e:
     print(e)
     print(f"Error for {img_file}, writing intermediate file to csv")
-    df.to_csv('output.csv', index=False)
+    df.to_csv('../data/meta_data.csv', index=False)
 
 print("All files done! Exporting to csv...")
-df.to_csv('output.csv', index=False)
+df.to_csv('../data/meta_data.csv', index=False)
