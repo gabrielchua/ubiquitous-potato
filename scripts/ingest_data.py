@@ -27,7 +27,8 @@ schema = pa.schema([
     pa.field("file_name", pa.string()),
     pa.field("category", pa.string()),
     pa.field("gender", pa.string()),
-    pa.field("occasion", pa.string())
+    pa.field("occasion", pa.string()),
+    pa.field("color", pa.string()),
     ])
 
 # Create an empty table with the schema
@@ -47,7 +48,8 @@ for index, row in tqdm(df.iterrows(), total=len(df)):
             "file_name": f"{row['file_name']}",
             "category": f"{row['category']}",
             "gender": f"{row['gender']}",
-            "occasion": f"{row['occasion']}"
+            "occasion": f"{row['occasion']}",
+            "color": f"{row['color']}"
         },
     ]
     tbl.add(img_data_to_add) # Add the image and metadata to the table
