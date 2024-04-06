@@ -328,3 +328,4 @@ etc/
 pyvenv.cfg
 images/
 uform_custom_embedding.py
+data/lancedb.zip
