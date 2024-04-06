@@ -1,45 +1,52 @@
-import streamlit as st
-import os
-import tempfile
+"""
+app.py
+"""
 import base64
-import requests
-import openai
 import json
+import tempfile
+import time
 from PIL import Image
 
 import lancedb
+import requests
+import streamlit as st
 import uform #version 2.0.2
+from openai import OpenAI
 
 SYSTEM_PROMPT = f"""
-  You are a world-class fashion stylist who is helping your client pick clothes for an upcoming event.
+You are a world-class fashion stylist who is helping your client pick clothes for an upcoming event.
 
-  Given information about your client's preferences, write descriptions of AT LEAST 2 articles of clothing fulfilling their requirements.
-  The articles of clothing must include AT LEAST a pair of shoes and EITHER (i) a one-piece like a dress OR (ii) a top & bottom like a shirt and jeans.
-  Limit the number of accessories like sunglasses, hats, scarves, bags etc. to 2.
-  Provide your output in JSON format, with each article of clothing as its own key.
+Given information about your client's preferences, write descriptions of AT LEAST 2 articles of clothing fulfilling their requirements.
+The articles of clothing must include AT LEAST a pair of shoes and EITHER (i) a one-piece like a dress OR (ii) a top & bottom like a shirt and jeans.
+Limit the number of accessories like sunglasses, hats, scarves, bags etc. to 2.
+Provide your output in JSON format, with each article of clothing as its own key.
 
-  Here is an example:
-  *******
-  [Client Information]:
-  Your Female client will be attending a Wedding.
-  They like the Classic look, in Black,
-  with Floral patterns, and especially admires pieces from Hugo Boss.
+Here is an example:
+*******
+[Client Information]:
+Your Female client will be attending a Wedding.
+They like the Classic look, in Black,
+with Floral patterns, and especially admires pieces from Hugo Boss.
 
-  [Clothing Descriptions]:
-  ```json
-    {{
-      "one-piece": "A long, flowy navy blue dress with floral sequins on the waist.",
-      "shoes" : "A pair of white heels with a back strap.",
-      "accessories": "A black clasp with gold accents."
-    }}
-  ```
-  *******
+[Clothing Descriptions]:
+```json
+{{
+    "one-piece": "A long, flowy navy blue dress with floral sequins on the waist.",
+    "shoes" : "A pair of white heels with a back strap.",
+    "accessories": "A black clasp with gold accents."
+}}
+```
+*******
 
-  Reply with JSON. No code block.
+Reply with JSON. No code block.
 """
 
-# QUERY = "blue hats"
-# IMG_QUERY = "images/blue_hat.jpg" # example
+# OpenAI API Key
+API_KEY = st.secrets["OPENAI_API_KEY"]
+
+# Streamlit configuration
+st.set_page_config(page_title="StyleSync", page_icon="👗")
+
 
 # Load the model
 model, processor = uform.get_model_onnx('unum-cloud/uform-vl-english-small', 'cpu', 'fp32')
@@ -51,10 +58,9 @@ db = lancedb.connect(uri)
 # Connect to the table
 tbl = db.open_table("poc")
 
-# OpenAI API Key
-api_key = st.secrets["OPENAI_API_KEY"]
 
 def style_assessment_text():
+    """ Streamlit component to collect user input for style assessment."""
     st.subheader("Tell us more about yourself!")
     st.session_state["gender"] = st.radio("What gender are you?", ["Male", "Female"])
     st.session_state["style_description"] = st.selectbox("How would you describe your personal style?", ["Classic", "Modern", "Bohemian", "Sporty"])
@@ -64,6 +70,7 @@ def style_assessment_text():
     st.session_state["outfit_occasions"] = st.selectbox("Are there any specific events or occasions for which you need outfit recommendations?", ["Conference", "Networking Event", "Wedding", "Gala", "Friend's Gathering"])
 
 def style_assessment_image():
+    """ Streamlit component to upload an image for style assessment. """
     st.subheader("Upload an image")
     # give user a way to upload an image of preferred outfit
     uploaded_file = st.file_uploader("Eg: share your preferred fashion style via a picture of Kate Middleton", type=["jpg", "png", "jpeg"])
@@ -78,17 +85,18 @@ def style_assessment_image():
             return base64_image
 
 def encode_image(image_path):
-  with open(image_path, "rb") as image_file:
-    return base64.b64encode(image_file.read()).decode('utf-8')
+    """ Encode an image file to base64."""
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode('utf-8')
 
 @st.cache_resource 
 def openai_image_analysis(base64_image):
+    """ Perform image analysis using OpenAI's API. """
     # OpenAI API Key
-    api_key = st.secrets["OPENAI_API_KEY"]
 
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}"
+        "Authorization": f"Bearer {API_KEY}"
     }
 
     payload = {
@@ -134,22 +142,16 @@ def openai_image_analysis(base64_image):
 
     response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
 
-    # return response.json()
-    # Parse the JSON string
-    # data = json.loads(response)
-
     # Access the contents
     contents = response.json()['choices'][0]['message']['content']
 
     return json.loads(contents)
-    # return response['choices'][0]['message']['content']
 
 # generate a text as a consultation to the user
-@st.cache_resource
-def generate_recommendation(user_input, results):
-    api_key = st.secrets["OPENAI_API_KEY"]
-
-    client = openai.OpenAI(api_key=api_key)
+# @st.cache_resource
+def generate_recommendation(user_input, results, st_container):
+    """ Generate a streamed recommendation based on the user input and the results. """
+    client = OpenAI(api_key=API_KEY)
 
     message_text = [
         {
@@ -162,6 +164,8 @@ def generate_recommendation(user_input, results):
             There are the items you may like based on the style of your choice. The first item, can be worn as a leisure wear, featuring a white color that resonates with your dress's base tone. It could pair well with similar skirts or pants for a cohesive look. 
             The second and third items introduce multi-color options, and can be worn as a leisure wear or a work wear. These choices suggest a blend of versatility and a subtle nod to your liking for floral or patterned designs, offering alternatives that could diversify your wardrobe while staying true to your aesthetic. 
             The color schemes and occasions these items are suited for indicate a range of possibilities for mixing and matching with your existing pieces, encouraging a playful yet refined approach to everyday dressing.
+
+            Include some emojis in your reply.
             """
         },
         {
@@ -171,21 +175,27 @@ def generate_recommendation(user_input, results):
         },
     ]
 
-    response = client.chat.completions.create(
-        model="gpt-4-turbo-preview",
+    stream = client.chat.completions.create(
+        model="gpt-4-0125-preview",
         messages=message_text,
         temperature=0,
-        max_tokens=300,
         top_p=0.95,
         frequency_penalty=0,
         presence_penalty=0,
         stop=None,
+        stream=True
     )
-    # return response['choices'][0]['message']['content']
-    return response.choices[0].message.content
 
+    text = ""
+    for chunk in stream:
+        if chunk.choices and chunk.choices[0].delta.content is not None:
+            text_chunk = chunk.choices[0].delta.content
+            for char in text_chunk:
+                text += char
+                st_container.info(text)
 
 def generate_user_input(session_state):
+    """ Generate user input based on the session state."""
     user_input = {
             "Description": session_state.get("style_description", ""),
             "Colors": session_state.get("colors", ""),
@@ -197,6 +207,7 @@ def generate_user_input(session_state):
     return user_input
 
 def main():
+    """ Main function for the Streamlit app. """
     st.title("StyleSync: Your Style Companion")
     # initialize_session_state()  # Initialize session state at the start of main()
     tab1, tab2 = st.tabs(["Upload an example", "Use a style assessment"])
@@ -222,8 +233,6 @@ def main():
 
             # Query the database using the given image among the shoes
             search_results_2 = tbl.search(text_embedding).limit(3).to_pandas()
-            # st.dataframe(search_results_2)
-
 
             col1 = st.columns(3)
             for index, row in search_results_2.iterrows():
@@ -233,17 +242,16 @@ def main():
                     image = Image.open(image_path)
                     with col1[index % 3]:
                         st.image(image, caption=f"Image {index}", width=150)
-                    
                 except FileNotFoundError:
                     st.error(f"Image file not found for row {index}.")
             # need to return a generated description
-            recommendation = generate_recommendation(response['description'], search_results)
-            st.markdown(recommendation)
+            recommendation_box = st.empty()
+            generate_recommendation(response['description'], search_results, recommendation_box)
 
     with tab2:
         style_assessment_text()
         if st.button("Submit"):
-            client = openai.OpenAI(api_key=api_key)
+            client = OpenAI(api_key=API_KEY)
             text_input = generate_user_input(st.session_state)
             input_prompt = f"""
             [Client Information]:
@@ -278,10 +286,10 @@ def main():
                                 st.image(image, caption=f"Image {index}", width=150)
                         except FileNotFoundError:
                             st.error(f"Image file not found for row {index}.")
-                    recommendation = generate_recommendation(text_data, search_results)
-                    st.markdown(recommendation)
+                    recommendation_box_2 = st.empty()
+                    generate_recommendation(text_data, search_results, recommendation_box_2)
                 else:
-                    st.write(f"Unfortunately, we don't have any pieces similar to {value}.")
+                    st.info(f"Unfortunately, we don't have any pieces similar to {value}.")
             
 if __name__ == "__main__":
     main()
