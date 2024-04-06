@@ -135,6 +135,8 @@ def generate_user_input(session_state):
     }
     return user_input
 
+# generate a text as a consultation to the user
+
 
 def main():
     st.title("Fashion Emulator")
@@ -143,41 +145,46 @@ def main():
     
     with tab1:
         base64_image = style_assessment_image()
+        if st.button("Save") and base64_image is not None:
+            response = openai_image_analysis(base64_image)
+            # st.json(response)
+            # perform the search here
+            # Get the embeddings of the query
+            text_data = processor.preprocess_text(response['description'])
+            text_embedding = model.encode_text(text_data).flatten()
+
+            # Query the database using the given text among the hats category
+            search_results = tbl.search(text_embedding).limit(3).to_pandas()
+            # st.dataframe(search_results)
+            # need to return a generated description
+
+            # Get the embeddings of the images
+            image = Image.open(st.session_state["image"])
+            image_data = processor.preprocess_image(image)
+            img_embeddings = model.encode_image(image_data).flatten()
+
+            # Query the database using the given image among the shoes
+            search_results_2 = tbl.search(text_embedding).limit(3).to_pandas()
+            st.dataframe(search_results_2)
+            col1 = st.columns(3)
+            for index, row in search_results_2.iterrows():
+                filename = row["file_name"]
+                image_path = "images/" + filename  
+                try:
+                    image = Image.open(image_path)
+                    with col1[index % 3]:
+                        st.image(image, caption=f"Image {index}", width=150)
+                    
+                except FileNotFoundError:
+                    st.error(f"Image file not found for row {index}.")
     with tab2:
         style_assessment_text()
+        if st.button("Submit"):
+            pass
 
-    if st.button("Save") and base64_image is not None:
-        response = openai_image_analysis(base64_image)
-        st.json(response)
-        # perform the search here
-        # Get the embeddings of the query
-        text_data = processor.preprocess_text(response['description'])
-        text_embedding = model.encode_text(text_data).flatten()
 
-        # Query the database using the given text among the hats category
-        search_results = tbl.search(text_embedding).limit(3).to_pandas()
-        # st.dataframe(search_results)
-        # need to return a generated description
 
-        # Get the embeddings of the images
-        image = Image.open(st.session_state["image"])
-        image_data = processor.preprocess_image(image)
-        img_embeddings = model.encode_image(image_data).flatten()
-
-        # Query the database using the given image among the shoes
-        search_results_2 = tbl.search(text_embedding).limit(3).to_pandas()
-        # st.dataframe(search_results_2)
-        col1 = st.columns(3)
-        for index, row in search_results_2.iterrows():
-            filename = row["file_name"]
-            image_path = "images/" + filename  
-            try:
-                image = Image.open(image_path)
-                with col1[index % 3]:
-                    st.image(image, caption=f"Image {index}", width=150)
-                
-            except FileNotFoundError:
-                st.error(f"Image file not found for row {index}.")
+    
     
        
 if __name__ == "__main__":
