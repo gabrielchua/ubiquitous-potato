@@ -41,7 +41,7 @@ async def analyse_image(file_path, semaphore, attempt=1):
     async with semaphore:  # This ensures that only a limited number of tasks run concurrently
         try:
             image_base64 = encode_image(open(file_path, "rb").read())
-            input_prompt = [{"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}", "detail": "high"}}]
+            input_prompt = [{"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}", "detail": "low"}}]
             response = await client.chat.completions.create(
                 model="gpt-4-vision-preview",
                 messages=[
