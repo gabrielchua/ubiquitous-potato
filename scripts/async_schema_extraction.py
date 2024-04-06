@@ -15,16 +15,19 @@ You are a world-class fashion stylist.
 You will receive an image of a clothing.
 Label the clothing by their category, gender and occasion.
 Provide your output in JSON format with the 4 keys:
-(1) category
-(2) gender
-(3) occasion
-(4) color
+(1) description
+(2) category
+(3) gender
+(4) occasion
+(5) color
 
 Here are the possible values for each key.
-(1) category: ['top', 'bottom', 'one-piece', 'outerwear', 'shoes', 'accessories', 'hats']
-(2) gender: ['male', 'female', 'unisex']
-(3) occasion: ['work', 'leisure', 'formal']
-(4) color: ['red', 'green', 'blue', 'yellow', 'black', 'white', 'grey', 'brown', 'orange', 'purple', 'pink', 'multi-color']
+(2) category: ['top', 'bottom', 'one-piece', 'outerwear', 'shoes', 'accessories', 'hats']
+(3) gender: ['male', 'female', 'unisex']
+(4) occasion: ['work', 'leisure', 'formal']
+(5) color: ['red', 'green', 'blue', 'yellow', 'black', 'white', 'grey', 'brown', 'orange', 'purple', 'pink', 'multi-color']
+
+For (1) description, provide a brief 10-20 words description of the clothing item.
 
 Each key can ONLY contain one string value.
 
@@ -49,6 +52,8 @@ async def analyse_image(file_path, semaphore, attempt=1):
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": input_prompt}],
                 max_tokens=500,
+                temperature=0,
+                seed=0
             )
             tagged_data = response.choices[0].message.content
             tagged_data = json.loads(tagged_data)
@@ -56,31 +61,31 @@ async def analyse_image(file_path, semaphore, attempt=1):
         except Exception as e:
             if attempt < 4:  # Retry up to 4 attempts
                 print(f"Error processing {file_path}: {e}. Attempt {attempt}/4. Retrying in 60 seconds...")
-                await asyncio.sleep(60)  # Wait for 60 seconds before retrying
+                await asyncio.sleep(30)  # Wait for 30 seconds before retrying
                 return await analyse_image(file_path, semaphore, attempt + 1)  # Increment attempt and retry
             else:
                 # Log the final failure after exceeding the retry limit and return None or an appropriate value
                 print(f"Failed to process {file_path} after 4 attempts.")
-                return [file_path, None, None, None, None]
+                return [file_path, None, None, None, None, None]
 
 async def process_file(file_name, semaphore):
     """ Process a file asynchronously and return the tagged data """
-    tagged_data = await analyse_image(f"../images/{file_name}", semaphore)
+    tagged_data = await analyse_image(f"../images/images/{file_name}", semaphore)
     print(f"Completed {file_name}.")  # Print statement to indicate completion
-    return [file_name, tagged_data['category'], tagged_data['gender'], tagged_data['occasion'], tagged_data['color']]
+    return [file_name, tagged_data['description'], tagged_data['category'], tagged_data['gender'], tagged_data['occasion'], tagged_data['color']]
 
 async def main():
     """ Main function to process all files asynchronously and save the results to a CSV file"""
     print(f"starting at {datetime.now()}")
     semaphore = asyncio.Semaphore(7)  # Allows up to 7 concurrent tasks
-    file_names_all = [f for f in os.listdir('/Users/dsaid/Downloads/images/') if f.endswith('.jpg') or f.endswith('.png')]
+    file_names_all = [f for f in os.listdir('../images/images') if f.endswith('.jpg') or f.endswith('.png')]
     random.shuffle(file_names_all)
-    file_names_all = file_names_all[:500]
+    file_names_all = file_names_all[:5000]
 
     tasks = [process_file(file_name, semaphore) for file_name in file_names_all]
     results = await asyncio.gather(*tasks)
 
-    df = pd.DataFrame(results, columns=['file_name', 'category', 'gender', 'occasion', 'color'])
+    df = pd.DataFrame(results, columns=['file_name', 'description', 'category', 'gender', 'occasion', 'color'])
     df.to_csv("../data/meta_data_v3_async.csv", index=False)
     print(f"ended at {datetime.now()}")
 
