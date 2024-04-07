@@ -206,6 +206,13 @@ def generate_user_input(session_state):
     }
     return user_input
 
+def download_image(file_name):
+    """ Download an image from a given URL. """
+    base_url = "https://raw.githubusercontent.com/gabrielchua/expert-succotash/main/"
+    full_url = f"{base_url}{file_name}"
+    response = requests.get(full_url)
+    return response.content
+    
 def main():
     """ Main function for the Streamlit app. """
     st.title("StyleSync: Your Style Companion")
@@ -237,11 +244,10 @@ def main():
             col1 = st.columns(3)
             for index, row in search_results_2.iterrows():
                 filename = row["file_name"]
-                image_path = "images/" + filename  
                 try:
-                    image = Image.open(image_path)
+                    # image = Image.open(image_path)
                     with col1[index % 3]:
-                        st.image(image, caption=f"Image {index}", width=150)
+                        st.image(download_image(filename), caption=f"Image {index + 1}", width=150)
                 except FileNotFoundError:
                     st.error(f"Image file not found for row {index}.")
             # need to return a generated description
@@ -281,17 +287,15 @@ def main():
                     col = st.columns(3)
                     for index, row in search_results.iterrows():
                         filename = row["file_name"]
-                        image_path = "images/" + filename
                         try:
-                            image = Image.open(image_path)
                             with col[index % 3]:
-                                st.image(image, caption=f"Image {index}", width=150)
+                                st.image(download_image(filename), caption=f"Image {index + 1}", width=150)
                         except FileNotFoundError:
                             st.error(f"Image file not found for row {index}.")
                     recommendation_box_2 = st.empty()
                     generate_recommendation(text_data, search_results, recommendation_box_2)
                 else:
-                    st.info(f"Unfortunately, we don't have any pieces similar to {value}.")
+                    st.info(f"Unfortunately, we don't have any pieces similar to _'{value}'_.")
             
 if __name__ == "__main__":
     main()
