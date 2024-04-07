@@ -59,9 +59,9 @@ async def analyse_image(file_path, semaphore, attempt=1):
             tagged_data = json.loads(tagged_data)
             return tagged_data
         except Exception as e:
-            if attempt < 4:  # Retry up to 4 attempts
-                print(f"Error processing {file_path}: {e}. Attempt {attempt}/4. Retrying in 60 seconds...")
-                await asyncio.sleep(30)  # Wait for 30 seconds before retrying
+            if attempt < 10:  # Retry up to 10 attempts
+                print(f"Error processing {file_path}: {e}. Attempt {attempt}/10. Retrying in 5 seconds...")
+                await asyncio.sleep(5)  # Wait for 5 seconds before retrying
                 return await analyse_image(file_path, semaphore, attempt + 1)  # Increment attempt and retry
             else:
                 # Log the final failure after exceeding the retry limit and return None or an appropriate value
@@ -77,7 +77,7 @@ async def process_file(file_name, semaphore):
 async def main():
     """ Main function to process all files asynchronously and save the results to a CSV file"""
     print(f"starting at {datetime.now()}")
-    semaphore = asyncio.Semaphore(7)  # Allows up to 7 concurrent tasks
+    semaphore = asyncio.Semaphore(10)  # Allows up to 10 concurrent tasks
     file_names_all = [f for f in os.listdir('../images/images') if f.endswith('.jpg') or f.endswith('.png')]
     random.shuffle(file_names_all)
     file_names_all = file_names_all[:5000]
