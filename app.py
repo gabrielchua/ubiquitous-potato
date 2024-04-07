@@ -62,12 +62,12 @@ tbl = db.open_table("poc")
 def style_assessment_text():
     """ Streamlit component to collect user input for style assessment."""
     st.subheader("Tell us more about yourself!")
-    st.session_state["gender"] = st.radio("What gender are you?", ["Male", "Female"])
-    st.session_state["style_description"] = st.selectbox("How would you describe your personal style?", ["Classic", "Modern", "Bohemian", "Sporty"])
-    st.session_state["colors"] = st.text_input("Are there any specific colors you enjoy wearing?")
-    st.session_state["patterns"] = st.selectbox("Do you prefer any specific patterns?", ["Striped", "Floral", "Solid Colored", "Metallic"])
-    st.session_state["icons_designers"] = st.text_input("Are there any fashion icons or designers whose aesthetic resonates with you?")
-    st.session_state["outfit_occasions"] = st.selectbox("Are there any specific events or occasions for which you need outfit recommendations?", ["Conference", "Networking Event", "Wedding", "Gala", "Friend's Gathering"])
+    st.session_state["gender"] = st.radio("What is your gender?", ["Male", "Female"])
+    st.session_state["style_description"] = st.selectbox("Describe your personal style?", ["Classic", "Modern", "Bohemian", "Sporty"])
+    st.session_state["colors"] = st.text_input("Any specific colors you enjoy wearing?")
+    st.session_state["patterns"] = st.selectbox("Any specific patterns your prefer?", ["Striped", "Floral", "Solid Colored", "Metallic"])
+    st.session_state["icons_designers"] = st.text_input("Fashion icons or designers whose aesthetic resonates with you?")
+    st.session_state["outfit_occasions"] = st.selectbox("Any specific events or occasions for which you need outfit recommendations for?", ["Conference", "Networking Event", "Wedding", "Gala", "Friend's Gathering"])
 
 def style_assessment_image():
     """ Streamlit component to upload an image for style assessment. """
@@ -278,11 +278,12 @@ def main():
             except Exception as e:
                 st.error(f"An error occurred: {e}")
             for key, value in output.items():
-                st.markdown(f"### {key.capitalize()}")
+                st.markdown(f"**Similar to _'{key.capitalize()}'_**")
                 
                 text_data = processor.preprocess_text(value)
                 text_embedding = model.encode_text(text_data).flatten()
-                search_results = tbl.search(text_embedding).where(f"category == '{key}'", prefilter=True).limit(3).to_pandas()
+                # search_results = tbl.search(text_embedding).where(f"category == '{key}'", prefilter=True).limit(3).to_pandas()
+                search_results = tbl.search(text_embedding).limit(3).to_pandas()
                 if len(search_results) > 0:
                     col = st.columns(3)
                     for index, row in search_results.iterrows():
@@ -295,7 +296,7 @@ def main():
                     recommendation_box_2 = st.empty()
                     generate_recommendation(text_data, search_results, recommendation_box_2)
                 else:
-                    st.info(f"Unfortunately, we don't have any pieces similar to _'{value}'_.")
+                    st.info(f"Unfortunately, we don't have any similar pieces. We are working to expanding our dataset. Please check back later. ")
             
 if __name__ == "__main__":
     main()
