@@ -56,7 +56,7 @@ uri = "data/lancedb"
 db = lancedb.connect(uri)
 
 # Connect to the table
-tbl = db.open_table("poc")
+tbl = db.open_table("poc_2")
 
 
 def style_assessment_text():
@@ -165,6 +165,8 @@ def generate_recommendation(user_input, results, st_container):
             The second and third items introduce multi-color options, and can be worn as a leisure wear or a work wear. These choices suggest a blend of versatility and a subtle nod to your liking for floral or patterned designs, offering alternatives that could diversify your wardrobe while staying true to your aesthetic. 
             The color schemes and occasions these items are suited for indicate a range of possibilities for mixing and matching with your existing pieces, encouraging a playful yet refined approach to everyday dressing.
 
+            No more than 200 words.
+
             Include some emojis in your reply.
             """
         },
@@ -176,7 +178,7 @@ def generate_recommendation(user_input, results, st_container):
     ]
 
     stream = client.chat.completions.create(
-        model="gpt-4-0125-preview",
+        model="gpt-3.5-turbo-0125",
         messages=message_text,
         temperature=0,
         top_p=0.95,
