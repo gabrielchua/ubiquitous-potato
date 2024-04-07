@@ -24,11 +24,13 @@ streamlit run app.py
 
 ## Tech Stack
 
-StyleSync leverages a multi-modal search approach to fashion, combining the power of image and text analysis to deliver precise recommendations.
+StyleSync employs a multi-modal search approach to fashion, combining the power of image and text analysis to deliver recommendations.
 
-- **Uform-vl-english-small**: We utilize this model to generate image-text embeddings that help in understanding and matching fashion-related queries. [Learn more](https://github.com/unum-cloud/uform).
+- **Uform-vl-english-small**: We utilize this model to generate image and text embedding. This is a lightweight model that can be deployed locally. [More details on uform here](https://github.com/unum-cloud/uform).
 
-- **GPT-4 Vision**: For extracting structured metadata from images, we employ OpenAI's GPT-4 Vision model. This enhances our ability to interpret the visual aspects of fashion items accurately. [Explore GPT-4 Vision](https://platform.openai.com/docs/guides/vision/vision).
+- **GPT-4 Vision**: For extracting structured metadata from images, we employ OpenAI's GPT-4 Vision model. This enhances our ability to interpret the visual aspects of fashion items accurately. [More details on GPT-4 Vision here](https://platform.openai.com/docs/guides/vision/vision).
+
+![image](overview.png)
 
 ## Ingesting Your Own Data
 
