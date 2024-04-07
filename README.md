@@ -4,14 +4,14 @@
 > [!TIP]
 > The above demo is hosted on Streamlit's free community cloud hosting. Due to infra limitations, the application may not always be available.
 
-Finding the perfect outfit for various occasions can be challenging. From browsing through multiple online stores to lacking a clear vision of the desired look, the process can be time-consuming and often frustrating. StyleSync aims to simplify this journey, offering personalized fashion recommendations tailored to individual preferences.
+Finding the perfect outfit for various occasions can be challenging. 🤔 From browsing through multiple online stores to lacking a clear vision of the desired look, the process can be time-consuming and often frustrating. **StyleSync aims to simplify this journey, offering personalized fashion recommendations tailored to individual preferences.**
 
 ## Getting Started
 
 To begin using StyleSync, follow these steps to set up your development environment:
 
 > [!TIP]
-> Use a virtual environment is recommended!
+> Using a virtual environment is recommended! This app was developed with Python `3.11.5`.
 
 1. Install the required dependencies:
 ```
