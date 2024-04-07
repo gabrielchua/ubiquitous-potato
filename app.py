@@ -280,7 +280,7 @@ def main():
             except Exception as e:
                 st.error(f"An error occurred: {e}")
             for key, value in output.items():
-                st.markdown(f"**Similar to _'{key.capitalize()}'_**")
+                st.markdown(f"**Similar to _'{value.capitalize()}'_**")
                 
                 text_data = processor.preprocess_text(value)
                 text_embedding = model.encode_text(text_data).flatten()
