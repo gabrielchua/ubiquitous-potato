@@ -151,7 +151,7 @@ def main():
     st.title("StyleSync: Your Style Companion")
     # initialize_session_state()  # Initialize session state at the start of main()
     tab1, tab2 = st.tabs(["Upload an example", "Use a style assessment"])
-    
+
     with tab1:
         base64_image = style_assessment_image()
         if st.button("Get Recommendations") and base64_image is not None:
@@ -227,8 +227,9 @@ def main():
             except Exception as e:
                 st.error(f"An error occurred: {e}")
             for key, value in output.items():
+
                 st.markdown(f"**Similar to _'{value.capitalize()}'_**")
-                
+    
                 text_data = processor.preprocess_text(value)
                 text_embedding = model.encode_text(text_data).flatten()
 
@@ -247,6 +248,6 @@ def main():
                     generate_recommendation(text_data, search_results, recommendation_box_2)
                 else:
                     st.info(f"Unfortunately, we don't have any similar pieces. We are working to expanding our dataset. Please check back later. ")
-            
+
 if __name__ == "__main__":
     main()
