@@ -41,6 +41,40 @@ with Floral patterns, and especially admires pieces from Hugo Boss.
 Reply with JSON. No code block.
 """
 
+SYSTEM_PROMPT2 = f"""
+  You are a world-class fashion stylist who is helping your client pick clothes for an upcoming event.
+
+  You will be provided with their GENDER and the OCCASION they want to wear the outfit,
+  and elements of style (i.e. LOOK, COLOR and PATTERN) that they DO NOT LIKE.
+  Given the information of your client, write descriptions of AT LEAST 2 articles of clothing fulfilling their requirements.
+
+  Make sure the clothes you recommend AVOID the elements (i.e. LOOK, COLOR and PATTERN) they have stated,
+  but MATCH their GENDER and OCCASION.
+
+  The articles of clothing must include AT LEAST a pair of shoes and EITHER
+  (i) a one-piece like a dress OR (ii) a top & bottom like a shirt and jeans.
+  Limit the number of accessories like sunglasses, hats, scarves, bags etc. to 2.
+  Provide your output in JSON format, with each article of clothing as its own key.
+
+  Here is an example:
+  *******
+  [Client Information]:
+  Your Male client will be attending a Wedding.
+  They DO NOT like the Modern look, Black colours and Floral patterns.
+
+  [Clothing Descriptions]:
+  ```json
+    {{
+      "one-piece": "A short, forest green dress with pleats.",
+      "shoes" : "A pair of pink pumps.",
+      "accessories": "A blue wallet with gold accents."
+    }}
+  ```
+  *******
+
+  Reply with JSON. No code block.
+"""
+
 # OpenAI API Key
 API_KEY = st.secrets["OPENAI_API_KEY"]
 
@@ -63,11 +97,19 @@ def style_assessment_text():
     """ Streamlit component to collect user input for style assessment."""
     st.subheader("Tell us more about yourself!")
     st.session_state["gender"] = st.radio("What is your gender?", ["Male", "Female"])
-    st.session_state["style_description"] = st.selectbox("Describe your personal style?", ["Classic", "Modern", "Bohemian", "Sporty"])
-    st.session_state["colors"] = st.text_input("Any specific colors you enjoy wearing?")
-    st.session_state["patterns"] = st.selectbox("Any specific patterns your prefer?", ["Striped", "Floral", "Solid Colored", "Metallic"])
-    st.session_state["icons_designers"] = st.text_input("Fashion icons or designers whose aesthetic resonates with you?")
     st.session_state["outfit_occasions"] = st.selectbox("Any specific events or occasions for which you need outfit recommendations for?", ["Conference", "Networking Event", "Wedding", "Gala", "Friend's Gathering"])
+    sub1, sub2 = st.tabs(["What I like", "What I hate"])
+    with sub1:
+        st.session_state["style_description"] = st.selectbox("Describe your personal style?", ["Classic", "Modern", "Bohemian", "Sporty"])
+        st.session_state["colors"] = st.text_input("Any specific colors you enjoy wearing?")
+        st.session_state["patterns"] = st.selectbox("Any specific patterns your prefer?", ["Striped", "Floral", "Solid Colored", "Metallic"])
+        st.session_state["icons_designers"] = st.text_input("Fashion icons or designers whose aesthetic resonates with you?")
+        st.session_state["variant"] = "like"
+    with sub2:
+        st.session_state["style_description"] = st.selectbox("What style would you never be caught wearing?", ["Classic", "Modern", "Bohemian", "Sporty"])
+        st.session_state["colors"] = st.text_input("Any specific colors you don't like?")
+        st.session_state["patterns"] = st.selectbox("How about patterns you avoid?", ["Striped", "Floral", "Solid Colored", "Metallic"])
+        st.session_state["variant"] = "hate"
 
 def style_assessment_image():
     """ Streamlit component to upload an image for style assessment. """
@@ -261,18 +303,24 @@ def main():
         if st.button("Submit"):
             client = OpenAI(api_key=API_KEY)
             text_input = generate_user_input(st.session_state)
+            variant = st.session_state.get("variant", "")
             input_prompt = f"""
             [Client Information]:
             Your {text_input["Gender"]} client will be attending a {text_input["Outfit Occasions"]}.
             They like the {text_input["Description"]} look, in {text_input["Colors"]},
             with {text_input["Patterns"]}, and especially admires pieces from {text_input["Icons/Designers"]}.
             """
+            input_prompt2 = f"""
+            [Client Information]:
+            Your {text_input["Gender"]} client will be attending a{text_input["Outfit Occasions"]}.
+            They DO NOT like the {text_input["Description"]} look, {text_input["Colors"]} colours and {text_input["Patterns"]}.
+            """
             try:
                 response = client.chat.completions.create(
                                 model="gpt-4-0125-preview",
                                 messages=[
-                                    {"role": "system", "content": SYSTEM_PROMPT},
-                                    {"role": "user", "content": input_prompt}],
+                                    {"role": "system", "content": SYSTEM_PROMPT if variant == "like" else SYSTEM_PROMPT2},
+                                    {"role": "user", "content": input_prompt if variant == "like" else input_prompt2}],
                                 max_tokens=700,
                             )
                 output = response.choices[0].message.content
