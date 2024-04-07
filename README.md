@@ -1,9 +1,10 @@
 # StyleSync: Your Style Companion
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://stylesync.streamlit.app/)
 
+> [!TIP]
+> The above demo is hosted on Streamlit's free community cloud hosting. Due to infra limitations, the application may not always be available.
 
 Finding the perfect outfit for various occasions can be challenging. From browsing through multiple online stores to lacking a clear vision of the desired look, the process can be time-consuming and often frustrating. StyleSync aims to simplify this journey, offering personalized fashion recommendations tailored to individual preferences.
-
 
 ## Getting Started
 
