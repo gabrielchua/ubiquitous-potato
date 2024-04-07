@@ -13,85 +13,32 @@ import streamlit as st
 import uform #version 2.0.2
 from openai import OpenAI
 
-SYSTEM_PROMPT = f"""
-You are a world-class fashion stylist who is helping your client pick clothes for an upcoming event.
+from config import (
+    EXTRACT_IMG_META_DATA,
+    IMG_BASE_URL,
+    GENERATE_DESC_BASED_ON_PREFERENCES,
+    GENERATE_DESC_BASED_ON_NEGATIVE_PREFERENCES,
+    GENERATE_STYLE_RECOMMENDATION,
+    GPT3_5_TURBO,
+    GPT4,
+    GPT4_VISION,
+    LANCEDB_TABLE_NAME,
+    LANCEDB_URI,
+    OPENAI_API_KEY,
+    )
 
-Given information about your client's preferences, write descriptions of AT LEAST 2 articles of clothing fulfilling their requirements.
-The articles of clothing must include AT LEAST a pair of shoes and EITHER (i) a one-piece like a dress OR (ii) a top & bottom like a shirt and jeans.
-Limit the number of accessories like sunglasses, hats, scarves, bags etc. to 2.
-Provide your output in JSON format, with each article of clothing as its own key.
-
-Here is an example:
-*******
-[Client Information]:
-Your Female client will be attending a Wedding.
-They like the Classic look, in Black,
-with Floral patterns, and especially admires pieces from Hugo Boss.
-
-[Clothing Descriptions]:
-```json
-{{
-    "one-piece": "A long, flowy navy blue dress with floral sequins on the waist.",
-    "shoes" : "A pair of white heels with a back strap.",
-    "accessories": "A black clasp with gold accents."
-}}
-```
-*******
-
-Reply with JSON. No code block.
-"""
-
-SYSTEM_PROMPT2 = f"""
-  You are a world-class fashion stylist who is helping your client pick clothes for an upcoming event.
-
-  You will be provided with their GENDER and the OCCASION they want to wear the outfit,
-  and elements of style (i.e. LOOK, COLOR and PATTERN) that they DO NOT LIKE.
-  Given the information of your client, write descriptions of AT LEAST 2 articles of clothing fulfilling their requirements.
-
-  Make sure the clothes you recommend AVOID the elements (i.e. LOOK, COLOR and PATTERN) they have stated,
-  but MATCH their GENDER and OCCASION.
-
-  The articles of clothing must include AT LEAST a pair of shoes and EITHER
-  (i) a one-piece like a dress OR (ii) a top & bottom like a shirt and jeans.
-  Limit the number of accessories like sunglasses, hats, scarves, bags etc. to 2.
-  Provide your output in JSON format, with each article of clothing as its own key.
-
-  Here is an example:
-  *******
-  [Client Information]:
-  Your Male client will be attending a Wedding.
-  They DO NOT like the Modern look, Black colours and Floral patterns.
-
-  [Clothing Descriptions]:
-  ```json
-    {{
-      "one-piece": "A short, forest green dress with pleats.",
-      "shoes" : "A pair of pink pumps.",
-      "accessories": "A blue wallet with gold accents."
-    }}
-  ```
-  *******
-
-  Reply with JSON. No code block.
-"""
-
-# OpenAI API Key
-API_KEY = st.secrets["OPENAI_API_KEY"]
-
-# Streamlit configuration
+# Set the page configuration
 st.set_page_config(page_title="StyleSync", page_icon="👗")
-
 
 # Load the model
 model, processor = uform.get_model_onnx('unum-cloud/uform-vl-english-small', 'cpu', 'fp32')
 
-# Connect to the database
-uri = "data/lancedb"
-db = lancedb.connect(uri)
+# Connect to the database and table
+db = lancedb.connect(LANCEDB_URI)
+tbl = db.open_table(LANCEDB_TABLE_NAME)
 
-# Connect to the table
-tbl = db.open_table("poc_2")
-
+# Initialise the OpenAI client
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 def style_assessment_text():
     """ Streamlit component to collect user input for style assessment."""
@@ -131,102 +78,45 @@ def encode_image(image_path):
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode('utf-8')
 
-@st.cache_resource 
+@st.cache_resource
 def openai_image_analysis(base64_image):
     """ Perform image analysis using OpenAI's API. """
-    # OpenAI API Key
 
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {API_KEY}"
-    }
+    input_prompt = [{"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}", "detail": "low"}}]
 
-    payload = {
-        "model": "gpt-4-vision-preview",
-        "messages": [
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": f"""
-                        You are a world-class fashion stylist like Karla Welch(https://www.instagram.com/karlawelchstylist/?hl=en)
-                        Label the clothing item in the image by their category, gender and occasion.
-                        Provide your output and keep to this format, with the following keys
-                        (1) description
-                        (2) category
-                        (3) gender
-                        (4) occasion.
+    message_list = [
+        {"role": "system","content": EXTRACT_IMG_META_DATA},
+        {"role": "user", "content": input_prompt},
+    ]
 
-                        Here are the possible values for each key.
-                        (1) description, which is a string that describes details on style (classic, modern, sporty, etc), colors, patterns (stripes, floral, etc), accessories (necklace, earrings, head dress, etc)
-                        (2) category: ['top', 'bottom', 'one piece', 'outerwear', 'shoes', 'accessories', 'hats']
-                        (3) gender: ['male', 'female', 'unisex']
-                        (4) occasion: ['work', 'leisure', 'formal']
+    response = client.chat.completions.create(
+        model=GPT4_VISION,
+        messages=message_list,
+        max_tokens=500,
+        temperature=0,
+        seed=0
+    )
+    
+    tagged_data = response.choices[0].message.content
+    tagged_data = json.loads(tagged_data)
 
-                        Each key can ONLY contain one string value.
-
-                        Always reply with one JSON item. No code block.
-            """
-                    },
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/jpeg;base64,{base64_image}",
-                            "detail": "high"
-                        }
-                    },
-                ]
-            }
-        ],
-        "max_tokens": 1000
-    }
-
-    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
-
-    # Access the contents
-    contents = response.json()['choices'][0]['message']['content']
-
-    return json.loads(contents)
+    return tagged_data
 
 # generate a text as a consultation to the user
 # @st.cache_resource
 def generate_recommendation(user_input, results, st_container):
     """ Generate a streamed recommendation based on the user input and the results. """
-    client = OpenAI(api_key=API_KEY)
 
-    message_text = [
-        {
-            "role": "system",
-            "content": """Your role is to be a trusted fashion stylist.
-            Given the context of user inputs, write a paragraph to explain fashion choice by the user, and give context on what he or she might like.
-            Then, generate the explanations of the results (which is stored in a df), unpack the output, and help user understands how he or she may like to wear the clothes.
-            Use a tone like a best friend to the user, write a short paragraph to give context on what he or she might like.
-            For example: 
-            There are the items you may like based on the style of your choice. The first item, can be worn as a leisure wear, featuring a white color that resonates with your dress's base tone. It could pair well with similar skirts or pants for a cohesive look. 
-            The second and third items introduce multi-color options, and can be worn as a leisure wear or a work wear. These choices suggest a blend of versatility and a subtle nod to your liking for floral or patterned designs, offering alternatives that could diversify your wardrobe while staying true to your aesthetic. 
-            The color schemes and occasions these items are suited for indicate a range of possibilities for mixing and matching with your existing pieces, encouraging a playful yet refined approach to everyday dressing.
-
-            No more than 200 words.
-
-            Include some emojis in your reply.
-            """
-        },
-        {
-            "role": "user",
-            "content": f"[User input]\n{user_input}\
-            [Returned results]\n{results}",
-        },
+    message_list = [
+        {"role": "system","content": GENERATE_STYLE_RECOMMENDATION},
+        {"role": "user", "content": f"[User input]\n{user_input}\n\n[Returned results]\n{results}",},
     ]
 
     stream = client.chat.completions.create(
-        model="gpt-3.5-turbo-0125",
-        messages=message_text,
-        temperature=0,
-        top_p=0.95,
-        frequency_penalty=0,
-        presence_penalty=0,
-        stop=None,
+        model=GPT3_5_TURBO,
+        messages=message_list,
+        temperature=0.1,
+        seed=0,
         stream=True
     )
 
@@ -252,8 +142,7 @@ def generate_user_input(session_state):
 
 def download_image(file_name):
     """ Download an image from a given URL. """
-    base_url = "https://raw.githubusercontent.com/gabrielchua/expert-succotash/main/"
-    full_url = f"{base_url}{file_name}"
+    full_url = f"{IMG_BASE_URL}{file_name}"
     response = requests.get(full_url)
     return response.content
     
@@ -267,61 +156,70 @@ def main():
         base64_image = style_assessment_image()
         if st.button("Save") and base64_image is not None:
             response = openai_image_analysis(base64_image)
-            # st.json(response)
-            # perform the search here
-            # Get the embeddings of the query
+
+            # Get the embeddings of the image description
             text_data = processor.preprocess_text(response['description'])
             text_embedding = model.encode_text(text_data).flatten()
 
             # Query the database using the given text among the hats category
-            search_results = tbl.search(text_embedding).limit(3).to_pandas()
-            # st.dataframe(search_results)
+            search_results_text = tbl.search(text_embedding).limit(3).to_pandas()
 
-            # Get the embeddings of the images
+            # Get the embeddings of the image
             image = Image.open(st.session_state["image"])
             image_data = processor.preprocess_image(image)
-            img_embeddings = model.encode_image(image_data).flatten()
 
             # Query the database using the given image among the shoes
-            search_results_2 = tbl.search(text_embedding).limit(3).to_pandas()
+            search_results_img = tbl.search(image_data).limit(3).to_pandas()
 
+            retrieved_img_file_names = list(set(search_results_img["file_name"].unique()) + set(search_results_text["file_name"].unique()))
+            retrieved_img_file_names = retrieved_img_file_names[:3]
+ 
             col1 = st.columns(3)
-            for index, row in search_results_2.iterrows():
-                filename = row["file_name"]
+            # for index, row in search_results_img.iterrows():
+                # filename = row["file_name"]
+            for index, filename in enumerate(retrieved_img_file_names):
                 try:
                     # image = Image.open(image_path)
                     with col1[index % 3]:
                         st.image(download_image(filename), caption=f"Image {index + 1}", width=150)
                 except FileNotFoundError:
                     st.error(f"Image file not found for row {index}.")
-            # need to return a generated description
+
+            # Based on these images, generate a recommendation
             recommendation_box = st.empty()
-            generate_recommendation(response['description'], search_results, recommendation_box)
+            generate_recommendation(response['description'], search_results_img, recommendation_box)
 
     with tab2:
         style_assessment_text()
         if st.button("Submit"):
-            client = OpenAI(api_key=API_KEY)
             text_input = generate_user_input(st.session_state)
             variant = st.session_state.get("variant", "")
-            input_prompt = f"""
-            [Client Information]:
-            Your {text_input["Gender"]} client will be attending a {text_input["Outfit Occasions"]}.
-            They like the {text_input["Description"]} look, in {text_input["Colors"]},
-            with {text_input["Patterns"]}, and especially admires pieces from {text_input["Icons/Designers"]}.
+
+            preferences = f"""
+                [Client Information]:
+                Your {text_input["Gender"]} client will be attending a {text_input["Outfit Occasions"]}.
+                They like the {text_input["Description"]} look, in {text_input["Colors"]},
+                with {text_input["Patterns"]}, and especially admires pieces from {text_input["Icons/Designers"]}.
             """
-            input_prompt2 = f"""
-            [Client Information]:
-            Your {text_input["Gender"]} client will be attending a{text_input["Outfit Occasions"]}.
-            They DO NOT like the {text_input["Description"]} look, {text_input["Colors"]} colours and {text_input["Patterns"]}.
+
+            negative_preferences = f"""
+                [Client Information]:
+                Your {text_input["Gender"]} client will be attending a{text_input["Outfit Occasions"]}.
+                They DO NOT like the {text_input["Description"]} look, {text_input["Colors"]} colours and {text_input["Patterns"]}.
             """
+
             try:
+                message_list = [
+                    {"role": "system","content": GENERATE_DESC_BASED_ON_PREFERENCES if variant == "like" else GENERATE_DESC_BASED_ON_NEGATIVE_PREFERENCES},
+                    {"role": "user", "content": preferences if variant == "like" else negative_preferences},
+                ]
+
                 response = client.chat.completions.create(
-                                model="gpt-4-0125-preview",
-                                messages=[
-                                    {"role": "system", "content": SYSTEM_PROMPT if variant == "like" else SYSTEM_PROMPT2},
-                                    {"role": "user", "content": input_prompt if variant == "like" else input_prompt2}],
+                                model=GPT4,
+                                messages=message_list,
                                 max_tokens=700,
+                                temperature=0.1,
+                                seed=0
                             )
                 output = response.choices[0].message.content
                 output = json.loads(output)
@@ -332,6 +230,7 @@ def main():
                 
                 text_data = processor.preprocess_text(value)
                 text_embedding = model.encode_text(text_data).flatten()
+
                 # search_results = tbl.search(text_embedding).where(f"category == '{key}'", prefilter=True).limit(3).to_pandas()
                 search_results = tbl.search(text_embedding).limit(3).to_pandas()
                 if len(search_results) > 0:
