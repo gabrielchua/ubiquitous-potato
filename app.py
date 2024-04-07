@@ -68,7 +68,7 @@ def style_assessment_image():
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
             temp_file.write(uploaded_file.read())
             st.image(temp_file.name, caption='Uploaded Image', width=200)
-            st.write("Image Uploaded Successfully!")
+            st.toast("Image Uploaded Successfully!")
             st.session_state["image"] = temp_file.name
             base64_image = encode_image(temp_file.name)
             return base64_image
@@ -82,7 +82,7 @@ def encode_image(image_path):
 def openai_image_analysis(base64_image):
     """ Perform image analysis using OpenAI's API. """
 
-    input_prompt = [{"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}", "detail": "low"}}]
+    input_prompt = [{"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}", "detail": "low"}}]
 
     message_list = [
         {"role": "system","content": EXTRACT_IMG_META_DATA},
@@ -154,7 +154,7 @@ def main():
     
     with tab1:
         base64_image = style_assessment_image()
-        if st.button("Save") and base64_image is not None:
+        if st.button("Get Recommendations") and base64_image is not None:
             response = openai_image_analysis(base64_image)
 
             # Get the embeddings of the image description
@@ -167,11 +167,12 @@ def main():
             # Get the embeddings of the image
             image = Image.open(st.session_state["image"])
             image_data = processor.preprocess_image(image)
+            img_embedding = model.encode_image(image_data).flatten()
 
             # Query the database using the given image among the shoes
-            search_results_img = tbl.search(image_data).limit(3).to_pandas()
+            search_results_img = tbl.search(img_embedding).limit(3).to_pandas()
 
-            retrieved_img_file_names = list(set(search_results_img["file_name"].unique()) + set(search_results_text["file_name"].unique()))
+            retrieved_img_file_names = list(set(search_results_img["file_name"].unique()).union(set(search_results_text["file_name"].unique())))
             retrieved_img_file_names = retrieved_img_file_names[:3]
  
             col1 = st.columns(3)
