@@ -108,7 +108,7 @@ There are the items you may like based on the style of your choice. The first it
 The second and third items introduce multi-color options, and can be worn as a leisure wear or a work wear. These choices suggest a blend of versatility and a subtle nod to your liking for floral or patterned designs, offering alternatives that could diversify your wardrobe while staying true to your aesthetic. 
 The color schemes and occasions these items are suited for indicate a range of possibilities for mixing and matching with your existing pieces, encouraging a playful yet refined approach to everyday dressing.
 
-No more than 200 words.
+No more than 100 words.
 
 Include some emojis in your reply.
 """
