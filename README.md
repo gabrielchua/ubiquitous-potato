@@ -1,4 +1,4 @@
-# StyleSync: Your Style Companion
+# StyleSync: Your Style Companion ✨
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://stylesync.streamlit.app/)
 
 > [!TIP]
